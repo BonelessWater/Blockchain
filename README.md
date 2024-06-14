@@ -1,11 +1,11 @@
 # Blockchain Algorithm
 
 ## TO-DO
-[ ] RSA encryption algorithm such that transactions can be securely signed
-[x] Blockchain algorithm where hashes are created with their respective nonce value
-[X] Establish P2P network
-[ ] Securely add crypo currency to the miner
-[ ] Broadcast new blocks to connected nodes, nodes recursively broadcast a block until all nodes are updated. Note: Each node must verify transaction integrity and hash integrity
+- [ ] RSA encryption algorithm such that transactions can be securely signed
+- [x] Blockchain algorithm where hashes are created with their respective nonce value
+- [ ] Establish P2P network
+- [ ] Securely add crypo currency to the miner
+- [ ] Broadcast new blocks to connected nodes, nodes recursively broadcast a block until all nodes are updated. Note: Each node must verify transaction integrity and hash integrity
 
 
 ## Notes
