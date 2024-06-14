@@ -1,6 +1,7 @@
 package main
 
 import (
+	//"crypto/sha256"
 	"fmt"
 	"math"
 	"math/rand"
@@ -8,71 +9,93 @@ import (
 	"github.com/fxtlabs/primes"
 )
 
-func gcf(n1 int, n2 int) int {
-   if (n2 != 0) {
-      return gcf(n2, n1 % n2);
-   } else {
-      return n1;
-   }
+func gcf(a, b int) int {
+	if b == 0 {
+		return a
+	}
+	return gcf(b, a%b)
 }
 
-func find_primes(scale float64) (int, int){
-	boundary := rand.Float64() // Generates a random integer between 0 and 1
-	
-	upr := int(math.Round(scale * boundary) + scale) // gets upper bound of first prime
+func find_primes(scale float64) (int, int) {
+	boundary := rand.Float64()
+	upr := int(math.Round(scale*boundary) + scale)
 	arr := primes.Sieve(upr)
+	p := arr[len(arr)-1]
 
-	p := arr[len(arr) - 1]
-
-	upr = int(math.Round(scale * boundary) + scale) // gets upper bound of first prime
+	upr = int(math.Round(scale*boundary) + scale)
 	arr = primes.Sieve(upr)
-
-	q := arr[len(arr) - 1]
-
+	q := arr[len(arr)-2]
 	return p, q
 }
 
-func rsa() ([2]int, [2]int) {
-	var scale float64 = 100.0
-    
-	valid_primes := false
-	var e int
-	var phi int
-	var n int
+func floor(a, b int) int { // when dividing integer, go already gives your floor division my default
+	return a / b
+}
 
-	for !valid_primes{
+func extendedGCD(a, b int) int { // https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
+	old_r, r := a, b
+	old_s, s := 1, 0
+	old_t, t := 0, 1
 
-		p, q := find_primes(scale)
-		n = p * q
-
-		phi = (p-1) * (q-1)
-
-		for i := phi-1; i >= 1 ; i-- { // finds a number e where, 1 < e < phi and the gfc of e and pdi is 1 (e and phi are coprime )
-			gfc := gcf(phi, i)
-			if gfc == 1{
-				valid_primes = true
-				e = i
-				break
-			}
-		}
+	var quotient int
+	for r != 0{
+		quotient = floor(old_r, r)
+		old_r, r = r, old_r - quotient * r
+		old_s, s = s, old_s - quotient * s
+		old_t, t = t, old_t - quotient * t
 	}
-	
-	mult_inverse_fd := false // finding modular multiplicative inverse of e modulo phi. there is only one value that satifies this equation: d*e≡1 (mod ϕ(n))
-	var d int
-	for !mult_inverse_fd{
-		d = 1
-		if (d * e) % phi == (1 % phi){
-			mult_inverse_fd = true
-		}
-	}
+	return old_s
+}
 
-	var pk_pair [2]int = [2]int{e, n}
-	var sk_pair [2]int = [2]int{d, n}
+func get_keys() ([2]int, [2]int) {
+	scale := 1000.0
 
-	return pk_pair, sk_pair
+	var e, d, phi, n, lambda int
+
+	p, q := find_primes(scale)
+	n = p * q
+	phi = (p - 1) * (q - 1)
+
+	lambda = phi/gcf(p-1, q-1) // lcm(a, b) where a = p-1 and b=q-1; lcm(a, b) is also equal to abs(a*b)/gcd(a,b)
+	fmt.Println(lambda)
+	e = 7
+
+	d = extendedGCD(e, phi)
+
+	return [2]int{e, n}, [2]int{d, n}
 }
 
 func main() {
-	pk_pair, sk_pair := rsa()
-	fmt.Printf("Public key pair: %v, Secret key pair: %v ", pk_pair, sk_pair)
+	pk_pair, sk_pair := get_keys()
+	fmt.Printf("Public key pair: %v, Secret key pair: %v\n", pk_pair, sk_pair)
+
+	msg := "Hello"
+
+	asciiValues := make([]int, len(msg))
+
+	// Convert each character to its ASCII value
+	for i, char := range msg {
+		asciiValues[i] = int(char)
+	}
+
+	fmt.Printf("Original string: %s\n", msg)
+	fmt.Printf("ASCII values: %v\n", asciiValues)
+
+
+	fmt.Println((pk_pair[0]*sk_pair[0])%pk_pair[1] == 1)
+
+	//var m_value []int 
+	//var rsa_bl []int
+	//pointer := 0
+	//for i := 0; i < len(asciiValues); i++{ // makes sure the values of m do not exceed n
+	//	if m_value[pointer]
+	//		m_value[pointer] = asciiValues[i]
+	//}
+
+
+	//hash := sha256.New() // Get the hash of the message
+	//hash.Write([]byte(msg))
+	//hashSum := hash.Sum(nil) 
+
+	//fmt.Println(hashSum)
 }
