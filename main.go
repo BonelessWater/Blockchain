@@ -1,174 +1,78 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
-	"io"
-	"log"
-	"net/http"
-	"os"
-	"strconv"
-	"sync"
-	"time"
+	"fmt"
+	"math"
+	"math/rand"
 
-	"github.com/davecgh/go-spew/spew"
-	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
+	"github.com/fxtlabs/primes"
 )
 
-// Block represents each 'item' in the blockchain
-type Block struct {
-	Index     int
-	Timestamp string
-	BPM       int
-	Hash      string
-	PrevHash  string
+func gcf(n1 int, n2 int) int {
+   if (n2 != 0) {
+      return gcf(n2, n1 % n2);
+   } else {
+      return n1;
+   }
 }
 
-// Blockchain is a series of validated Blocks
-var Blockchain []Block
+func find_primes(scale float64) (int, int){
+	boundary := rand.Float64() // Generates a random integer between 0 and 1
+	
+	upr := int(math.Round(scale * boundary) + scale) // gets upper bound of first prime
+	arr := primes.Sieve(upr)
 
-// Message takes incoming JSON payload for writing heart rate
-type Message struct {
-	BPM int
+	p := arr[len(arr) - 1]
+
+	upr = int(math.Round(scale * boundary) + scale) // gets upper bound of first prime
+	arr = primes.Sieve(upr)
+
+	q := arr[len(arr) - 1]
+
+	return p, q
 }
 
-var mutex = &sync.Mutex{}
+func rsa() ([2]int, [2]int) {
+	var scale float64 = 100.0
+    
+	valid_primes := false
+	var e int
+	var phi int
+	var n int
+
+	for !valid_primes{
+
+		p, q := find_primes(scale)
+		n = p * q
+
+		phi = (p-1) * (q-1)
+
+		for i := phi-1; i >= 1 ; i-- { // finds a number e where, 1 < e < phi and the gfc of e and pdi is 1 (e and phi are coprime )
+			gfc := gcf(phi, i)
+			if gfc == 1{
+				valid_primes = true
+				e = i
+				break
+			}
+		}
+	}
+	
+	mult_inverse_fd := false // finding modular multiplicative inverse of e modulo phi. there is only one value that satifies this equation: d*e≡1 (mod ϕ(n))
+	var d int
+	for !mult_inverse_fd{
+		d = 1
+		if (d * e) % phi == (1 % phi){
+			mult_inverse_fd = true
+		}
+	}
+
+	var pk_pair [2]int = [2]int{e, n}
+	var sk_pair [2]int = [2]int{d, n}
+
+	return pk_pair, sk_pair
+}
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	go func() {
-		t := time.Now()
-		genesisBlock := Block{}
-		genesisBlock = Block{0, t.String(), 0, calculateHash(genesisBlock), ""}
-		spew.Dump(genesisBlock)
-
-		mutex.Lock()
-		Blockchain = append(Blockchain, genesisBlock)
-		mutex.Unlock()
-	}()
-	log.Fatal(run())
-
-}
-
-// web server
-func run() error {
-	mux := makeMuxRouter()
-	httpPort := os.Getenv("PORT")
-	log.Println("HTTP Server Listening on port :", httpPort)
-	s := &http.Server{
-		Addr:           ":" + httpPort,
-		Handler:        mux,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 20,
-	}
-
-	if err := s.ListenAndServe(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// create handlers
-func makeMuxRouter() http.Handler {
-	muxRouter := mux.NewRouter()
-	muxRouter.HandleFunc("/", handleGetBlockchain).Methods("GET")
-	muxRouter.HandleFunc("/", handleWriteBlock).Methods("POST")
-	return muxRouter
-}
-
-// write blockchain when we receive an http request
-func handleGetBlockchain(w http.ResponseWriter, r *http.Request) {
-	bytes, err := json.MarshalIndent(Blockchain, "", "  ")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	io.WriteString(w, string(bytes))
-}
-
-// takes JSON payload as an input for heart rate (BPM)
-func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	var msg Message
-
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&msg); err != nil {
-		respondWithJSON(w, r, http.StatusBadRequest, r.Body)
-		return
-	}
-	defer r.Body.Close()
-
-	mutex.Lock()
-	prevBlock := Blockchain[len(Blockchain)-1]
-	newBlock := generateBlock(prevBlock, msg.BPM)
-
-	if isBlockValid(newBlock, prevBlock) {
-		Blockchain = append(Blockchain, newBlock)
-		spew.Dump(Blockchain)
-	}
-	mutex.Unlock()
-
-	respondWithJSON(w, r, http.StatusCreated, newBlock)
-
-}
-
-func respondWithJSON(w http.ResponseWriter, r *http.Request, code int, payload interface{}) {
-	response, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("HTTP 500: Internal Server Error"))
-		return
-	}
-	w.WriteHeader(code)
-	w.Write(response)
-}
-
-// make sure block is valid by checking index, and comparing the hash of the previous block
-func isBlockValid(newBlock, oldBlock Block) bool {
-	if oldBlock.Index+1 != newBlock.Index {
-		return false
-	}
-
-	if oldBlock.Hash != newBlock.PrevHash {
-		return false
-	}
-
-	if calculateHash(newBlock) != newBlock.Hash {
-		return false
-	}
-
-	return true
-}
-
-// SHA256 hasing
-func calculateHash(block Block) string {
-	record := strconv.Itoa(block.Index) + block.Timestamp + strconv.Itoa(block.BPM) + block.PrevHash
-	h := sha256.New()
-	h.Write([]byte(record))
-	hashed := h.Sum(nil)
-	return hex.EncodeToString(hashed)
-}
-
-// create a new block using previous block's hash
-func generateBlock(oldBlock Block, BPM int) Block {
-
-	var newBlock Block
-
-	t := time.Now()
-
-	newBlock.Index = oldBlock.Index + 1
-	newBlock.Timestamp = t.String()
-	newBlock.BPM = BPM
-	newBlock.PrevHash = oldBlock.Hash
-	newBlock.Hash = calculateHash(newBlock)
-
-	return newBlock
+	pk_pair, sk_pair := rsa()
+	fmt.Printf("Public key pair: %v, Secret key pair: %v ", pk_pair, sk_pair)
 }
