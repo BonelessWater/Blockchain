@@ -2,30 +2,48 @@ package main
 
 import (
 	//"crypto/sha256"
-	"blockchain/crypto"
-	"fmt"
+
+	"crypto/sha256"
+	"encoding/json"
+	"time"
 )
 
 type Block struct {
 	Index int
-	Timestamp string
-	Transactions int // later change to a merkle root (i think)
-	PrevHash string
-	Hash string
+	Timestamp int64
+	//NewTransactions []Transaction
+	Merkleroot [32]byte
+	PrevHash [32]byte
+	Hash [32]byte
 }
+type Transaction struct { 
+	sender [4]byte
+	reciever [4]byte
+	amt [4]byte
+}
+var Blockchain []Block // later this will be initiliazed by json package
 
 func main() {
-	pk_pair, sk_pair := crypto.Get_keys()
 
-	var msg string = "Hello" 
+	if len(Blockchain) == 0 { // Create genesis block if Blockchain is empty
+		b := Block {
+			Index: 0,
+			Timestamp: time.Now().Unix(),
+		}
+		 // Convert struct to byte slice (JSON representation)
+		jsonData, err := json.Marshal(b)
+		if err != nil {
+			panic(err)
+		}
+		b.Hash = sha256.Sum256(jsonData)
+	}
+	
+	
 
-	enc_msg := crypto.Encrypt(msg, pk_pair)
 
-	dec_msg := crypto.Decrypt(enc_msg, sk_pair)
+	// create new block
 
-	fmt.Println(msg)
-	fmt.Println(enc_msg)
-	fmt.Println(dec_msg)
+
 	//var m_value []int 
 	//var rsa_bl []int
 	//pointer := 0
@@ -41,3 +59,5 @@ func main() {
 
 	//fmt.Println(hashSum)
 }
+
+// make method for verifying if a foreign node added the correct amount of coins to their account
