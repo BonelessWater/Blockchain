@@ -4,6 +4,7 @@ import (
 	//"crypto/sha256"
 	"fmt"
 	"math"
+	"math/big"
 	"math/rand"
 	"unicode/utf8"
 
@@ -45,11 +46,15 @@ func extendedGCD(a, b int) int { // https://en.wikipedia.org/wiki/Extended_Eucli
 		old_s, s = s, old_s - quotient * s
 		old_t, t = t, old_t - quotient * t
 	}
-	return old_s
+	if old_s > 0 {
+		return old_s
+	} else {
+		return old_s + b // adding the final value with lamda if d is a negative number
+	}
 }
 
 func get_keys() ([2]int, [2]int) {
-	scale := 10000.0 // must use numbers with magnitude of four or greater or (e*d)%lambda will yeild negative numbers. Larger numebrs are slower but more secure
+	scale := 1000.0 // must use numbers with magnitude of four or greater or (e*d)%lambda will yeild negative numbers. Larger numebrs are slower but more secure
 
 	var e, d, phi, n, lambda int
 
@@ -60,6 +65,7 @@ func get_keys() ([2]int, [2]int) {
 	lambda = phi/gcf(p-1, q-1) // lcm(a, b) where a = p-1 and b=q-1; lcm(a, b) is also equal to abs(a*b)/gcd(a,b)
 	
 	e = 65537 // e = 2^16 + 1. We uses this number because smaller numbers are known to be less secure in spite of being faster
+	fmt.Println(lambda)
 	d = extendedGCD(e, lambda) // d ≡ e^-1 (mod λ(n))
 
 	// p, q and lambda must be kept secret because they can be used to compute the sk_pair
@@ -70,36 +76,46 @@ func main() {
 	pk_pair, sk_pair := get_keys()
 	fmt.Printf("Public key pair: %v, Secret key pair: %v\n", pk_pair, sk_pair)
 
-	msg := "Hello"
+	msg := "Hello" // encrypt and decrypt a letter for starters
 
 	// Convert each character to its ASCII value
-	utf := make([]uint8, utf8.RuneCountInString(msg)) // unsigned 8 bit integers are equivalent to bytes in all ways.
+	utf := make([]byte, utf8.RuneCountInString(msg)) //  bytesare equivalent to unsigned 8 bit integers in all ways. bytes are just used for convention
 	i := 0
 	for _, r := range msg {
-		utf[i] = uint8(r)
+		utf[i] = byte(r)
 		i++
 	}
 
 	fmt.Printf("Original string: %s\n", msg)
 	fmt.Printf("ASCII values: %v\n", utf)
 
-	enc_msg := make([]uint8, len(utf)) // encryption
-	i = 0
-	for _, r := range(utf){
-		enc_msg[i] = uint8(math.Pow(float64(utf[r]), float64(pk_pair[0])))%255 // mod 255 in case the result of this exponentiation is larger than uint8 size
-		fmt.Println(enc_msg[i])
-		i++
+	enc_msg := make([]int64, len(utf)) // encryption
+	exponent := big.NewInt(int64(pk_pair[0])) // use "math/big" package to prevent overflows
+	c := new(big.Int)
+	for i := 0; i < len(enc_msg); i++ {
+		base := big.NewInt(int64(utf[i]))
+		c.Exp(base, exponent, nil)
+		c.Mod(c, big.NewInt(int64(pk_pair[1])))
+		enc_msg[i] = c.Int64()
 	}
 	fmt.Println(enc_msg)
 
-	dec_msg := make([]uint8, len(utf)) // decryption
-	i = 0
-	for _, r := range(enc_msg){
-		dec_msg[i] = uint8(math.Pow(float64(enc_msg[r]), float64(sk_pair[0])))%255
-		i++
+	dec_msg := make([]int64, len(utf)) // decryption
+	exponent = big.NewInt(int64(sk_pair[0]))
+	m := new(big.Int)
+	for i := 0; i < len(dec_msg); i++ {
+		base := big.NewInt(int64(enc_msg[i]))
+		m.Exp(base, exponent, nil)
+		m.Mod(m, big.NewInt(int64(sk_pair[1])))
+		dec_msg[i] = m.Int64()
 	}
-	fmt.Println(dec_msg)
 
+	fmt.Println(dec_msg)
+	var reversedMsg string
+	for _, ascii := range dec_msg {
+		reversedMsg += string(ascii)
+	}
+	fmt.Println(reversedMsg)
 	//var m_value []int 
 	//var rsa_bl []int
 	//pointer := 0
