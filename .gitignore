@@ -2,3 +2,9 @@ env
 env/*
 venv
 venv/*
+
+gitignore
+
+go.mod
+go.sum
+blockchain.exe

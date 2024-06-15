@@ -37,6 +37,8 @@ func main() {
 		}
 		b.Hash = sha256.Sum256(jsonData)
 	}
+
+	// Fetch json
 	
 	
 
