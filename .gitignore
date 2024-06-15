@@ -1,10 +1,11 @@
-env
+.env
 env/*
 venv
 venv/*
 
-gitignore
+.gitignore
+.gitattributes
 
-go.mod
-go.sum
-blockchain.exe
+.go.mod
+.go.sum
+.blockchain.exe
