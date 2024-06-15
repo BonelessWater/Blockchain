@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"unicode/utf8"
 
 	"github.com/fxtlabs/primes"
 )
@@ -48,7 +49,7 @@ func extendedGCD(a, b int) int { // https://en.wikipedia.org/wiki/Extended_Eucli
 }
 
 func get_keys() ([2]int, [2]int) {
-	scale := 1000.0
+	scale := 10000.0 // must use numbers with magnitude of four or greater or (e*d)%lambda will yeild negative numbers. Larger numebrs are slower but more secure
 
 	var e, d, phi, n, lambda int
 
@@ -57,11 +58,11 @@ func get_keys() ([2]int, [2]int) {
 	phi = (p - 1) * (q - 1)
 
 	lambda = phi/gcf(p-1, q-1) // lcm(a, b) where a = p-1 and b=q-1; lcm(a, b) is also equal to abs(a*b)/gcd(a,b)
-	fmt.Println(lambda)
-	e = 7
+	
+	e = 65537 // e = 2^16 + 1. We uses this number because smaller numbers are known to be less secure in spite of being faster
+	d = extendedGCD(e, lambda) // d ≡ e^-1 (mod λ(n))
 
-	d = extendedGCD(e, phi)
-
+	// p, q and lambda must be kept secret because they can be used to compute the sk_pair
 	return [2]int{e, n}, [2]int{d, n}
 }
 
@@ -71,18 +72,33 @@ func main() {
 
 	msg := "Hello"
 
-	asciiValues := make([]int, len(msg))
-
 	// Convert each character to its ASCII value
-	for i, char := range msg {
-		asciiValues[i] = int(char)
+	utf := make([]uint8, utf8.RuneCountInString(msg)) // unsigned 8 bit integers are equivalent to bytes in all ways.
+	i := 0
+	for _, r := range msg {
+		utf[i] = uint8(r)
+		i++
 	}
 
 	fmt.Printf("Original string: %s\n", msg)
-	fmt.Printf("ASCII values: %v\n", asciiValues)
+	fmt.Printf("ASCII values: %v\n", utf)
 
+	enc_msg := make([]uint8, len(utf)) // encryption
+	i = 0
+	for _, r := range(utf){
+		enc_msg[i] = uint8(math.Pow(float64(utf[r]), float64(pk_pair[0])))%255 // mod 255 in case the result of this exponentiation is larger than uint8 size
+		fmt.Println(enc_msg[i])
+		i++
+	}
+	fmt.Println(enc_msg)
 
-	fmt.Println((pk_pair[0]*sk_pair[0])%pk_pair[1] == 1)
+	dec_msg := make([]uint8, len(utf)) // decryption
+	i = 0
+	for _, r := range(enc_msg){
+		dec_msg[i] = uint8(math.Pow(float64(enc_msg[r]), float64(sk_pair[0])))%255
+		i++
+	}
+	fmt.Println(dec_msg)
 
 	//var m_value []int 
 	//var rsa_bl []int
