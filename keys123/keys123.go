@@ -1,14 +1,27 @@
-package crypto
+package keys123
 
 import (
+	"encoding/csv"
+	"fmt"
+	"log"
 	"math"
 	"math/big"
 	"math/rand"
+	"os"
+	"strconv"
 	"sync"
 	"unicode/utf8"
 
 	"github.com/fxtlabs/primes"
 )
+
+type Transaction struct { 
+	Timestamp string
+	Sender [2]int
+	Reciever [2]int
+	Amt int
+	Signature []int64
+}
 
 func gcf(a, b int) int {
 	if b == 0 {
@@ -48,7 +61,7 @@ func extendedGCD(a, b int) int { // https://en.wikipedia.org/wiki/Extended_Eucli
 	}
 }
 
-func Get_keys() ([2]int, [2]int) {
+func Make_keys() {
 	scale := 100.0 // must use numbers with magnitude of four or greater or (e*d)%lambda will yeild negative numbers. Larger numebrs are slower but more secure
 
 	var e, d, phi, n, lambda int
@@ -62,16 +75,64 @@ func Get_keys() ([2]int, [2]int) {
 	e = 65537 // e = 2^16 + 1. We uses this number because smaller numbers are known to be less secure in spite of being faster
 
 	d = extendedGCD(e, lambda) // d ≡ e^-1 (mod λ(n))
-
 	// p, q and lambda must be kept secret because they can be used to compute the sk_pair
+	line := strconv.Itoa(e) + "," + strconv.Itoa(d) + "," + strconv.Itoa(n)
+
+	f, err := os.Create("keys.txt")
+	if err != nil {
+		fmt.Println(err)
+            	f.Close()
+		return
+	}
+	l, err := f.WriteString(line)
+	if err != nil {
+		fmt.Println(err)
+        f.Close()
+		return
+	}
+	fmt.Println(l, "bytes written successfully")
+	err = f.Close()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+func Get_keys() ([2]int, [2]int) {
+	filepath := "keys.txt"
+    f, err := os.Open(filepath)
+    if err != nil {
+        log.Fatal("Unable to read input file " + filepath, err)
+    }
+    defer f.Close()
+
+    csvReader := csv.NewReader(f)
+    records, err := csvReader.ReadAll()
+    if err != nil {
+        log.Fatal("Unable to parse file as CSV for " + filepath, err)
+    }
+	e, err := strconv.Atoi(records[0][0])
+	if err != nil {
+        fmt.Println("Error:", err)
+    }
+	d, err := strconv.Atoi(records[0][1])
+	if err != nil {
+        fmt.Println("Error:", err)
+    }
+	n, err := strconv.Atoi(records[0][2])
+	if err != nil {
+        fmt.Println("Error:", err)
+    }
 	return [2]int{e, n}, [2]int{d, n}
 }
 
-func Encrypt(msg string, pk_pair [2]int) []int64 {
+func Encrypt(data string) []int64 {
 	// Convert each character to its ASCII value
-	utf := make([]byte, utf8.RuneCountInString(msg)) //  bytesare equivalent to unsigned 8 bit integers in all ways. bytes are just used for convention
+	pk_pair := [2]int{}
+
+	utf := make([]byte, utf8.RuneCountInString(data)) //  bytesare equivalent to unsigned 8 bit integers in all ways. bytes are just used for convention
 	i := 0
-	for _, r := range msg {
+	for _, r := range data {
 		utf[i] = byte(r)
 		i++
 	}

@@ -3,183 +3,126 @@ package main
 import (
 	//"crypto/sha256"
 
-	"bufio"
+	"blockchain/keys123"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
-	"io"
-	"log"
-	"net"
-	"os"
-	"strconv"
-	"sync"
+	"fmt"
+	"strings"
 	"time"
-
-	"github.com/davecgh/go-spew/spew"
 )
+
+var BlockChain []Block
 
 type Block struct {
 	Index int
 	Timestamp string
 	Data int
-	//NewTransactions []Transaction
-	//Merkleroot [32]byte
+	NewTransactions []Transaction
+	Merkleroot string
 	PrevHash string
+	Target int
+	Nonce int
 	Hash string
 }
 type Transaction struct { 
-	sender [4]byte
-	reciever [4]byte
-	amt [4]byte
+	Timestamp string
+	Sender [2]int
+	Reciever [2]int
+	Amt int
+	Signature []int64
 }
 var Blockchain []Block // later this will be initiliazed by json package
 
-var bcServer chan []Block // bcServer handles incoming concurrent Blocks
-var mutex = &sync.Mutex{}
-
-
 func main() {
+	keys123.Make_keys()
+	x, y := keys123.Get_keys()
+	fmt.Println(x, y)
 
-	if len(Blockchain) == 0 { // Create genesis block if Blockchain is empty
-		b := Block {
-			Index: 0,
-			Timestamp: time.Now().Format(time.RFC3339),
-		}
-		b.Hash = calculateHash(b)
-		spew.Dump(b)
-		Blockchain = append(Blockchain, b)
-	}
+	// Create genesis block
+	var genesisBlock Block
 
-	tcpPort := os.Getenv("PORT") // gets environment variable
+	t := time.Now()
 
-	server, err := net.Listen("tcp", ":"+tcpPort) // start TCP and serve TCP server
+	genesisBlock.Index = 0
+	genesisBlock.Timestamp = t.String()
+	genesisBlock.Data = 0
+	genesisBlock.PrevHash = ""
+	genesisBlock.Target = 1
+	genesisBlock.Nonce, genesisBlock.Hash = calculateHash(genesisBlock)
+
+	Blockchain = append(Blockchain, genesisBlock)
+
+	pk_pair, sk_pair := keys123.Get_keys()
+	newBlock, err := generateBlock(BlockChain[len(Blockchain)-1], pk_pair, sk_pair)
 	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("TCP  Server Listening on port :", tcpPort)
-	defer server.Close()
-
-	for {
-		conn, err := server.Accept()
-		if err != nil {
-			log.Fatal(err)
-		}
-		go handleConn(conn)
-	}
-	// Fetch json
-	
-	
-
-
-	// create new block
-
-	//hash := sha256.New() // Get the hash of the message
-	//hash.Write([]byte(msg))
-	//hashSum := hash.Sum(nil) 
-
-	//fmt.Println(hashSum)
+        fmt.Println("Error:", err)
+    }
+	BlockChain = append(BlockChain, newBlock)
 }
 
 // make method for verifying if a foreign node added the correct amount of coins to their account
 
-func handleConn(conn net.Conn) {
-
-	defer conn.Close()
-
-	io.WriteString(conn, "Who do you want to send money to: ")
-
-	scanner := bufio.NewScanner(conn)
-
-	// take in data from stdin and add it to blockchain after conducting necessary validation
-	go func() {
-		for scanner.Scan() {
-			data, err := strconv.Atoi(scanner.Text())
-			if err != nil {
-				log.Printf("%v not a number: %v", scanner.Text(), err)
-				continue
-			}
-			newBlock, err := generateBlock(Blockchain[len(Blockchain)-1], data)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			if isBlockValid(newBlock, Blockchain[len(Blockchain)-1]) {
-				newBlockchain := append(Blockchain, newBlock)
-				replaceChain(newBlockchain)
-			}
-
-			bcServer <- Blockchain
-			io.WriteString(conn, "\nEnter a new number:")
-		}
-	}()
-
-	// simulate receiving broadcast
-	go func() {
-		for {
-			time.Sleep(30 * time.Second)
-			mutex.Lock()
-			output, err := json.Marshal(Blockchain)
-			if err != nil {
-				log.Fatal(err)
-			}
-			mutex.Unlock()
-			io.WriteString(conn, string(output))
-		}
-	}()
-
-	for _ = range bcServer {
-		spew.Dump(Blockchain)
+// SHA256 hashing
+func calculateHash(block Block) (int, string) {
+	valid := false
+	nonce := 0
+	var hash string
+	for !valid {
+		nonce++
+		record := string(block.Index) + block.Timestamp + string(block.Data) + block.PrevHash + string(block.Target) + string(nonce)
+		h := sha256.New()
+		h.Write([]byte(record))
+		hashed := h.Sum(nil)
+		hash = hex.EncodeToString(hashed)
+		valid = isHashValid(hash, block.Target)
 	}
-
+	return nonce, hash
 }
 
-// make sure block is valid by checking index, and comparing the hash of the previous block
-func isBlockValid(newBlock, oldBlock Block) bool {
-	if oldBlock.Index+1 != newBlock.Index {
-		return false
-	}
-
-	if oldBlock.Hash != newBlock.PrevHash {
-		return false
-	}
-
-	if calculateHash(newBlock) != newBlock.Hash {
-		return false
-	}
-
-	return true
-}
-
-// make sure the chain we're checking is longer than the current blockchain
-func replaceChain(newBlocks []Block) {
-	mutex.Lock()
-	if len(newBlocks) > len(Blockchain) {
-		Blockchain = newBlocks
-	}
-	mutex.Unlock()
-}
-
-// SHA256 hasing
-func calculateHash(block Block) string {
-	record := string(block.Index) + block.Timestamp + string(block.Data) + block.PrevHash
+func merkleHash(currMerkle string, newTransaction Transaction) string {
+	record := currMerkle + string(newTransaction.sender) + string(newTransaction.reciever) + string(newTransaction.amt)
 	h := sha256.New()
 	h.Write([]byte(record))
 	hashed := h.Sum(nil)
-	return hex.EncodeToString(hashed)
+	hash = hex.EncodeToString(hashed)
+	return hash
 }
 
 // create a new block using previous block's hash
-func generateBlock(oldBlock Block, Data int) (Block, error) {
-
+func generateBlock(oldBlock Block, pk_pair [2]int, sk_pair [2]int) (Block, error) {
 	var newBlock Block
-
+	var MinerReward Transaction
+	Merkleroot := oldBlock.Merkleroot
 	t := time.Now()
+
+	// Create fake data; otherwise fetch new data from here
+	for i := 0; i < 3; i++ {
+		var transaction Transaction
+		transaction.Sender = [2]int{1, 1} // this is the pk_key pair of a sender
+		transaction.Reciever = [2]int{1, 1} // this it eh sk_key pair of the receiver; doesn't have to be verified
+		transaction.Amt = 50
+		transaction.Timestamp = time.Now().String()
+		transaction.Signature = keys123.Encrypt(string(transaction.Sender[0]) + string(transaction.Sender[1]) + string(transaction.Reciever[0]) + string(transaction.Reciever[1]) + string(transaction.Amt) + transaction.Timestamp)
+		newBlock.Merkleroot = merkleHash(Merkleroot, transaction)
+		newBlock.NewTransactions = append(newBlock.NewTransactions, transaction)
+	}
+
+	// MinerReward.sender does not have to be defined as they create new money themselves
+	MinerReward.Reciever = pk_pair[0] // public key
+	MinerReward.Amt = 50 // coins
+	MinerReward.Timestamp = time.Now().String()
+	newBlock.Merkleroot = merkleHash(Merkleroot, MinerReward)
+	newBlock.NewTransactions = append(newBlock.NewTransactions, MinerReward)
 
 	newBlock.Index = oldBlock.Index + 1
 	newBlock.Timestamp = t.String()
-	newBlock.Data = Data
 	newBlock.PrevHash = oldBlock.Hash
-	newBlock.Hash = calculateHash(newBlock)
+	newBlock.Nonce, newBlock.Hash = calculateHash(newBlock)
 
 	return newBlock, nil
+}
+
+func isHashValid(hash string, target int) bool {
+	prefix := strings.Repeat("0", target)
+	return strings.HasPrefix(hash, prefix)
 }
