@@ -14,6 +14,7 @@
   - :white_check_mark: Merkle root algorithm
   - :x: Verify Merkle root based on new transactions
 - :x: Establish P2P network
+  - :x: Establish local host connection
   - :x: Send messages via JSON
   - :x: Receive messages via JSON
   - :x: Create and utilize trust threshold
