@@ -53,7 +53,7 @@ func main() {
 	Blockchain = append(Blockchain, genesisBlock)
 
 	pk_pair, sk_pair := keys123.Get_keys()
-	newBlock, err := generateBlock(BlockChain[len(Blockchain)-1], pk_pair, sk_pair)
+	newBlock, err := generateBlock(BlockChain[len(Blockchain)-1], pk_pair)
 	if err != nil {
         fmt.Println("Error:", err)
     }
@@ -80,16 +80,16 @@ func calculateHash(block Block) (int, string) {
 }
 
 func merkleHash(currMerkle string, newTransaction Transaction) string {
-	record := currMerkle + string(newTransaction.sender) + string(newTransaction.reciever) + string(newTransaction.amt)
+	record := currMerkle + string(newTransaction.Sender[0]) + string(newTransaction.Sender[1]) + string(newTransaction.Reciever[0]) + string(newTransaction.Reciever[1]) + string(newTransaction.Amt) + newTransaction.Timestamp
 	h := sha256.New()
 	h.Write([]byte(record))
 	hashed := h.Sum(nil)
-	hash = hex.EncodeToString(hashed)
+	hash := hex.EncodeToString(hashed)
 	return hash
 }
 
 // create a new block using previous block's hash
-func generateBlock(oldBlock Block, pk_pair [2]int, sk_pair [2]int) (Block, error) {
+func generateBlock(oldBlock Block, pk_pair [2]int) (Block, error) {
 	var newBlock Block
 	var MinerReward Transaction
 	Merkleroot := oldBlock.Merkleroot
@@ -108,9 +108,10 @@ func generateBlock(oldBlock Block, pk_pair [2]int, sk_pair [2]int) (Block, error
 	}
 
 	// MinerReward.sender does not have to be defined as they create new money themselves
-	MinerReward.Reciever = pk_pair[0] // public key
+	MinerReward.Reciever = pk_pair // public key
 	MinerReward.Amt = 50 // coins
 	MinerReward.Timestamp = time.Now().String()
+	MinerReward.Signature = keys123.Encrypt(string(MinerReward.Sender[0]) + string(MinerReward.Sender[1]) + string(MinerReward.Reciever[0]) + string(MinerReward.Reciever[1]) + string(MinerReward.Amt) + MinerReward.Timestamp)
 	newBlock.Merkleroot = merkleHash(Merkleroot, MinerReward)
 	newBlock.NewTransactions = append(newBlock.NewTransactions, MinerReward)
 
