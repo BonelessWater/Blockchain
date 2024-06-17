@@ -4,15 +4,15 @@
 
 
 ## TO-DO
-- :x: Blockchain algorithm where hashes are created with their respective nonce value
+- :white_check_mark: Blockchain algorithm where hashes are created with their respective nonce value
   - :x: Method for securely adding currency to the money supply w/ verfication
 - :x: Establish P2P network
   - :x: Send messages via JSON
-  - :x: Assign IDs to nodes
+  - :white_check_mark: Assign IDs to nodes
   - :white_check_mark: RSA encryption algorithm
-  - :x: Verify transaction signitures
+  - :white_check_mark: Verify transaction signitures
 - :x: Blockchain
-  - :x: Genesis block
+  - :white_check_mark: Genesis block
   - :white_check_mark: Relevant data: ID, Timestamp, Transactions, Merkleroot, Prevhash, Target difficulty, Nonce, Hash
   - :x: Merkle root algorithm + verification
 
