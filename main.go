@@ -11,7 +11,13 @@ import (
 	"time"
 )
 
-var BlockChain []Block
+type Transaction struct { 
+	Timestamp string
+	Sender [2]int
+	Reciever [2]int
+	Amt int
+	Signature []int64
+}
 
 type Block struct {
 	Index int
@@ -24,40 +30,28 @@ type Block struct {
 	Nonce int
 	Hash string
 }
-type Transaction struct { 
-	Timestamp string
-	Sender [2]int
-	Reciever [2]int
-	Amt int
-	Signature []int64
-}
+
 var Blockchain []Block // later this will be initiliazed by json package
 
 func main() {
-	keys123.Make_keys()
-	x, y := keys123.Get_keys()
-	fmt.Println(x, y)
-
 	// Create genesis block
 	var genesisBlock Block
 
-	t := time.Now()
-
 	genesisBlock.Index = 0
-	genesisBlock.Timestamp = t.String()
+	genesisBlock.Timestamp = time.Now().String()
 	genesisBlock.Data = 0
 	genesisBlock.PrevHash = ""
 	genesisBlock.Target = 1
 	genesisBlock.Nonce, genesisBlock.Hash = calculateHash(genesisBlock)
-
+	fmt.Println(genesisBlock)
 	Blockchain = append(Blockchain, genesisBlock)
-
-	pk_pair, sk_pair := keys123.Get_keys()
-	newBlock, err := generateBlock(BlockChain[len(Blockchain)-1], pk_pair)
+	fmt.Println(Blockchain)
+	pk_pair, _ := keys123.Get_keys()
+	newBlock, err := generateBlock(Blockchain[len(Blockchain)-1], pk_pair)
 	if err != nil {
         fmt.Println("Error:", err)
     }
-	BlockChain = append(BlockChain, newBlock)
+	Blockchain = append(Blockchain, newBlock)
 }
 
 // make method for verifying if a foreign node added the correct amount of coins to their account
@@ -90,10 +84,10 @@ func merkleHash(currMerkle string, newTransaction Transaction) string {
 
 // create a new block using previous block's hash
 func generateBlock(oldBlock Block, pk_pair [2]int) (Block, error) {
+	fmt.Println(1)
 	var newBlock Block
 	var MinerReward Transaction
 	Merkleroot := oldBlock.Merkleroot
-	t := time.Now()
 
 	// Create fake data; otherwise fetch new data from here
 	for i := 0; i < 3; i++ {
@@ -108,16 +102,19 @@ func generateBlock(oldBlock Block, pk_pair [2]int) (Block, error) {
 	}
 
 	// MinerReward.sender does not have to be defined as they create new money themselves
+	MinerReward.Sender = pk_pair	
 	MinerReward.Reciever = pk_pair // public key
 	MinerReward.Amt = 50 // coins
 	MinerReward.Timestamp = time.Now().String()
 	MinerReward.Signature = keys123.Encrypt(string(MinerReward.Sender[0]) + string(MinerReward.Sender[1]) + string(MinerReward.Reciever[0]) + string(MinerReward.Reciever[1]) + string(MinerReward.Amt) + MinerReward.Timestamp)
 	newBlock.Merkleroot = merkleHash(Merkleroot, MinerReward)
+	newBlock = verifySign(newBlock)
 	newBlock.NewTransactions = append(newBlock.NewTransactions, MinerReward)
 
 	newBlock.Index = oldBlock.Index + 1
-	newBlock.Timestamp = t.String()
+	newBlock.Timestamp = time.Now().String()
 	newBlock.PrevHash = oldBlock.Hash
+	newBlock.Target = oldBlock.Target // the target remains the same
 	newBlock.Nonce, newBlock.Hash = calculateHash(newBlock)
 
 	return newBlock, nil
@@ -126,4 +123,21 @@ func generateBlock(oldBlock Block, pk_pair [2]int) (Block, error) {
 func isHashValid(hash string, target int) bool {
 	prefix := strings.Repeat("0", target)
 	return strings.HasPrefix(hash, prefix)
+}
+
+func verifySign(block Block) Block {
+	transactions := block.NewTransactions
+	fmt.Print("here?")
+	// iterate through transactions later
+	transaction := transactions[3]
+	sign := transaction.Signature // miner
+	decrypted := keys123.Decrypt(sign)
+
+	if decrypted == string(transaction.Sender[0]) + string(transaction.Sender[1]) + string(transaction.Reciever[0]) + string(transaction.Reciever[1]) + string(transaction.Amt) + transaction.Timestamp{
+		fmt.Print("nice")
+		return block
+	} else {
+		fmt.Print("not nice")
+		return block // remove transaction here
+	}
 }

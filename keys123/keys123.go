@@ -126,9 +126,8 @@ func Get_keys() ([2]int, [2]int) {
 	return [2]int{e, n}, [2]int{d, n}
 }
 
-func Encrypt(data string) []int64 {
-	// Convert each character to its ASCII value
-	pk_pair := [2]int{}
+func Encrypt(data string) ([]int64) {
+	_, sk_pair := Get_keys()
 
 	utf := make([]byte, utf8.RuneCountInString(data)) //  bytesare equivalent to unsigned 8 bit integers in all ways. bytes are just used for convention
 	i := 0
@@ -138,28 +137,30 @@ func Encrypt(data string) []int64 {
 	}
 	
 	enc_msg := make([]int64, len(utf)) // encryption
-	exponent := big.NewInt(int64(pk_pair[0])) // use "math/big" package to prevent overflows
+	exponent := big.NewInt(int64(sk_pair[0])) // use "math/big" package to prevent overflows
 	c := new(big.Int)
 	for i := 0; i < len(enc_msg); i++ {
 		base := big.NewInt(int64(utf[i]))
 		c.Exp(base, exponent, nil)
-		c.Mod(c, big.NewInt(int64(pk_pair[1])))
+		c.Mod(c, big.NewInt(int64(sk_pair[1])))
 		enc_msg[i] = c.Int64()
 	}
 	return enc_msg
 }
 
-func decrypt(value int64, sk_pair [2]int) int64 {
-	exponent := big.NewInt(int64(sk_pair[0]))
+func decrypt(value int64) int64 {
+	pk_pair, _ := Get_keys()
+
+	exponent := big.NewInt(int64(pk_pair[0]))
 	m := new(big.Int)
 	base := big.NewInt(int64(value))
 
 	m.Exp(base, exponent, nil)
-	m.Mod(m, big.NewInt(int64(sk_pair[1])))
+	m.Mod(m, big.NewInt(int64(pk_pair[1])))
 	return m.Int64()
 }
 
-func Decrypt(enc_msg []int64, sk_pair [2]int) string {
+func Decrypt(enc_msg []int64) string {
 	var wg sync.WaitGroup
 	dec_msg := make([]int64, len(enc_msg)) // decryption
 
@@ -173,7 +174,7 @@ func Decrypt(enc_msg []int64, sk_pair [2]int) string {
 
 		go func() {
 			defer wg.Done() // Decrement the WaitGroup counter when the goroutine completes
-			dec_msg[index] = decrypt(value, sk_pair)
+			dec_msg[index] = decrypt(value)
 		}()
 	}
 
