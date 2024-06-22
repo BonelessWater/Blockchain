@@ -43,9 +43,9 @@ func main() {
 	genesisBlock.PrevHash = ""
 	genesisBlock.Target = 1
 	genesisBlock.Nonce, genesisBlock.Hash = calculateHash(genesisBlock)
-	fmt.Println(genesisBlock)
 	Blockchain = append(Blockchain, genesisBlock)
-	fmt.Println(Blockchain)
+
+	// Create new block with fake transaction data
 	pk_pair, _ := keys123.Get_keys()
 	newBlock, err := generateBlock(Blockchain[len(Blockchain)-1], pk_pair)
 	if err != nil {
@@ -84,7 +84,6 @@ func merkleHash(currMerkle string, newTransaction Transaction) string {
 
 // create a new block using previous block's hash
 func generateBlock(oldBlock Block, pk_pair [2]int) (Block, error) {
-	fmt.Println(1)
 	var newBlock Block
 	var MinerReward Transaction
 	Merkleroot := oldBlock.Merkleroot
@@ -127,9 +126,8 @@ func isHashValid(hash string, target int) bool {
 
 func verifySign(block Block) Block {
 	transactions := block.NewTransactions
-	fmt.Print("here?")
 	// iterate through transactions later
-	transaction := transactions[3]
+	transaction := transactions[2]
 	sign := transaction.Signature // miner
 	decrypted := keys123.Decrypt(sign)
 
