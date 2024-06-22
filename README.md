@@ -3,21 +3,20 @@
 - Additionally, the currency must be cryptographically secure, meaning that ill-intending actors cannot simply give themselves money without being verified. I will utilize RSA (Rivest–Shamir–Adleman) encryption to ensure that transactions are securely signed. Another method to stop bad actors is to append the value of the hash of the latest block each new block. In this way, bad actors cannot change the order of blocks because that would change the hollistic hash of the chain. Nodes will never trust blockchains by themselves and always take an additional step to verify them before mining.
 
 ## TO-DO
-- :x: Blockchain
+- :white_check_mark: Blockchain
   - :white_check_mark: Genesis block
   - :white_check_mark: Relevant data: ID, Timestamp, Transactions, Merkleroot, Prevhash, Target difficulty, Nonce, Hash
   - :white_check_mark: Assign public key pairs to node
   - :white_check_mark: Create successful Block hashes based on target
   - :white_check_mark: RSA encryption algorithm
   - :white_check_mark: Make transaction signitures
-  - :x: Verify transaction signitures
+  - :white_check_mark: Verify transaction signitures
   - :white_check_mark: Merkle root algorithm
-  - :x: Verify Merkle root based on new transactions
-- :x: Establish P2P network
-  - :x: Establish local host connection
-  - :x: Send messages via JSON
-  - :x: Receive messages via JSON
-  - :x: Create and utilize trust threshold
+- :white_check_mark: Establish P2P network
+  - :white_check_mark: Establish local host connection
+  - :white_check_mark: Send messages via JSON
+  - :white_check_mark: Receive messages via JSON
+  - :white_check_mark: Create and utilize trust threshold
   
 ## Notes
 Blockchain technology is a type of technology that is used to create and maintain a decentralized ledger.
