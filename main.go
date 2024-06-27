@@ -201,18 +201,6 @@ func generateBlock(oldBlock Block, pk_pair [2]int, newTransactions []Transaction
 	var MinerReward Transaction
 	Merkleroot := oldBlock.Merkleroot
 
-//	// Create fake data; otherwise fetch new data from here
-//	for i := 0; i < 3; i++ {
-//		var transaction Transaction
-//		transaction.Sender = [2]int{1, 1} // this is the pk_key pair of a sender
-//		transaction.Reciever = [2]int{1, 1} // this it eh sk_key pair of the receiver; doesn't have to be verified
-//		transaction.Amt = 50
-//		transaction.Timestamp = time.Now().String()
-//		transaction.Signature = keys123.Encrypt(string(transaction.Sender[0]) + string(transaction.Sender[1]) + string(transaction.Reciever[0]) + string(transaction.Reciever[1]) + string(transaction.Amt) + transaction.Timestamp)
-//		//newBlock.Merkleroot = merkleHash(Merkleroot, transaction)
-//		newTransactions = append(newTransactions, transaction)
-//	}
-
 	// MinerReward.sender does not have to be defined as they create new money themselves
 	MinerReward.Sender = pk_pair	
 	MinerReward.Reciever = pk_pair // public key
